@@ -1,11 +1,11 @@
 
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { BrainCircuit, Download, Loader2, FileText, Database } from "lucide-react";
+import { BrainCircuit, Download, Loader2, FileText, Database, Upload, FileUp } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +36,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { generateReportAction } from "./actions";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
 
 const formSchema = z.object({
   modelOutputs: z
@@ -43,8 +45,8 @@ const formSchema = z.object({
     .min(50, {
       message: "Model output must be at least 50 characters.",
     })
-    .max(10000, {
-      message: "Model output must not exceed 10000 characters.",
+    .max(50000, {
+      message: "Model output must not exceed 50000 characters.",
     }),
   glueDataset: z.string().min(1, { message: "Please select a GLUE dataset." }),
 });
@@ -60,6 +62,8 @@ export default function AIEvaluatorPage() {
   const [report, setReport] = useState<string | null>(null);
   const [submittedData, setSubmittedData] = useState<FormValues | null>(null);
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -68,6 +72,19 @@ export default function AIEvaluatorPage() {
       glueDataset: "",
     },
   });
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setFileName(file.name);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        form.setValue("modelOutputs", text, { shouldValidate: true });
+      };
+      reader.readAsText(file);
+    }
+  };
 
   function onSubmit(values: FormValues) {
     setReport(null);
@@ -128,26 +145,64 @@ export default function AIEvaluatorPage() {
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)}>
                 <CardContent className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="modelOutputs"
-                    render={({ field }) => (
+                  <Tabs defaultValue="text" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="text">Paste Text</TabsTrigger>
+                      <TabsTrigger value="file">Upload File</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="text">
+                      <FormField
+                        control={form.control}
+                        name="modelOutputs"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Model Outputs</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Paste your model outputs here (e.g., in JSON or CSV format)"
+                                className="min-h-[200px] resize-y font-code"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Provide the raw output from your AI model for evaluation.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </TabsContent>
+                    <TabsContent value="file">
                       <FormItem>
-                        <FormLabel>Model Outputs</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Paste your model outputs here (e.g., in JSON or CSV format)"
-                            className="min-h-[200px] resize-y font-code"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Provide the raw output from your AI model for evaluation.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                         <FormLabel>Model Output File</FormLabel>
+                         <FormControl>
+                            <div className="relative">
+                              <Input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileChange}
+                                className="hidden"
+                                accept=".json,.csv,.txt"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => fileInputRef.current?.click()}
+                                className="w-full"
+                              >
+                                <FileUp className="mr-2 h-4 w-4" />
+                                {fileName ? `Selected: ${fileName}` : "Choose a file"}
+                              </Button>
+                            </div>
+                         </FormControl>
+                         <FormDescription>
+                           Upload a .json, .csv, or .txt file with your model's output.
+                         </FormDescription>
+                         <FormMessage />
+                       </FormItem>
+                    </TabsContent>
+                  </Tabs>
+
                   <FormField
                     control={form.control}
                     name="glueDataset"
