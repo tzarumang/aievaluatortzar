@@ -10,8 +10,8 @@ const formSchema = z.object({
     .min(50, {
       message: "Model output must be at least 50 characters.",
     })
-    .max(5000, {
-      message: "Model output must not exceed 5000 characters.",
+    .max(10000, {
+      message: "Model output must not exceed 10000 characters.",
     }),
   glueDataset: z.string().min(1, { message: "Please select a GLUE dataset." }),
 });
